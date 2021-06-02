@@ -52,11 +52,14 @@ impl SdlWindow {
         return true
     }
 
-    pub fn display_loop(&mut self) {
+    pub fn display_loop(&mut self, memory: &[u8; 0x10000]) {
         self.canvas.set_draw_color(Color::RGB(0, 0, 0));
         self.canvas.clear();
         self.canvas.set_draw_color(Color::RGB(255, 255, 255));
-        self.canvas.draw_point(Point::new(25, 25));
+
+        let points = [Point::new(25, 25), Point::new(25, 26)];
+
+        self.canvas.draw_points(&points[..]);
         self.canvas.present();
     }
 }

@@ -65,7 +65,7 @@ impl Gameboy {
         if !self.window.event_loop() {
             return false;
         }
-        self.window.display_loop();
+        self.window.display_loop(&self.memory);
 
         if cfg!(debug_assertions) {
             println!("Before {:?}", self.registers);
