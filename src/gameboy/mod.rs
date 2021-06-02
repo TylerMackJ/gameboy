@@ -2,20 +2,24 @@ use std::fs::File;
 use std::io::Read;
 
 mod registers;
-pub mod window;
+mod window;
+
 use registers::*;
+use window::*;
 
 pub struct Gameboy {
     memory: [u8; 0x10000],
-    pub registers: Registers,
+    registers: Registers,
+    pub window: SdlWindow,
 }
 
 impl Gameboy {
-    pub fn new() -> Gameboy {
-        Gameboy {
+    pub fn new() -> Result<Gameboy, String> {
+        Ok(Gameboy {
             memory: [0u8; 0x10000],
             registers: Registers::new(),
-        }
+            window: SdlWindow::new()?,
+        })
     }
 
     pub fn load_rom(&mut self, rom_name: String) -> Result<(), std::io::Error> {
@@ -36,6 +40,7 @@ impl Gameboy {
     }
 
     // Debug / Messy
+    #[cfg(DebugAssertions)]
     pub fn print_memory(&self) {
         for i in 0x0000..0x5000 {
             print!("{:02X} ", self.memory[i]);
@@ -57,6 +62,11 @@ impl Gameboy {
     }
 
     pub fn step(&mut self) -> bool {
+        if !self.window.event_loop() {
+            return false;
+        }
+        self.window.display_loop();
+
         if cfg!(debug_assertions) {
             println!("Before {:?}", self.registers);
         }

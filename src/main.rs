@@ -1,8 +1,8 @@
 mod gameboy;
 
-
 fn main() -> Result<(), String> {
-    let mut window = gameboy::window::SdlWindow::new()?;
-    window.event_loop();
+    let mut gameboy = gameboy::Gameboy::new()?;
+    gameboy.load_rom("./roms/testRom.gb".to_string());
+    while gameboy.step() {};
     Ok(())
 }
