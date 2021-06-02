@@ -83,13 +83,34 @@ impl Gameboy {
                 self.registers.set_c(d8);
             }
 
+            0x15 => self.dec_8(Reg8::D),
+            0x16 => {
+                let d8: u8 = self.get_at_pc_incr();
+                self.registers.set_d(d8);
+            }
+
             0x18 => self.jr(true),
 
+            0x1f => {
+                let mut a: u8 = self.registers.get_a();
+                let carry: bool = self.registers.get_flag(Flag::C);
+
+                self.registers.set_flag(Flag::C, a & 0x01 == 0x01);
+                a >>= 1;
+                if carry {
+                    a += 0x80;
+                }
+                self.registers.set_a(a);
+            }
+
+            0x20 => self.jr(self.registers.get_flag(Flag::Z) == false),
             0x21 => {
                 // ld HL <= d16
                 let d16: u16 = self.get_next_16();
                 self.registers.set_hl(d16);
             }
+
+            0x25 => self.dec_8(Reg8::H),
 
             0x28 => self.jr(self.registers.get_flag(Flag::Z) == true),
 
@@ -103,6 +124,11 @@ impl Gameboy {
             0x3e => {
                 let d8: u8 = self.get_at_pc_incr();
                 self.registers.set_a(d8);
+            }
+
+            0xB0 => {
+                let b = self.registers.get_b();
+                self.or(b);
             }
 
             0xc3 => self.jmp(),
@@ -160,6 +186,7 @@ impl Gameboy {
         self.registers.set_flag(Flag::C, a < n);
     }
 
+    // Decrement an 8bit register
     pub fn dec_8(&mut self, reg: Reg8) {
         let mut value: u8 = self.registers.get_reg_8(reg);
 
@@ -173,7 +200,7 @@ impl Gameboy {
         }
         self.registers.set_reg_8(reg, value);
 
-        self.registers.set_flag(Flag::Z, value == 0);
+        self.registers.set_flag(Flag::Z, false);
         self.registers.set_flag(Flag::N, true);
     }
 
@@ -195,6 +222,17 @@ impl Gameboy {
         if condition {
             self.registers.set_pc(self.registers.get_pc() + offset as u16 - 1);  // -1 added for pc change to get relative values
         }
+    }
+
+    // OR n with A => A
+    pub fn or(&mut self, n: u8) {
+        let value: u8 = self.registers.get_a() | n;
+        self.registers.set_a(value);
+
+        self.registers.set_flag(Flag::Z, value == 0);
+        self.registers.set_flag(Flag::N, false);
+        self.registers.set_flag(Flag::H, false);
+        self.registers.set_flag(Flag::C, false);
     }
 
     // XOR n with A => A

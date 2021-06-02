@@ -203,12 +203,13 @@ impl Registers {
     // Flags
     pub fn set_flag(&mut self, flag: Flag, set: bool) {
         let f: u8 = self.get_f();
-        let mut flag_set: u8 = if set { 0x1 } else { 0x0 };
+        let mut flag_set: u8 = 0x1;
         flag_set <<= flag as u8;
+
         if set {
             self.set_f(f | flag_set);
         } else {
-            self.set_f(f & !flag_set);
+            self.set_f(f & (!flag_set));
         }
     }
     pub fn get_flag(&self, flag: Flag) -> bool {
