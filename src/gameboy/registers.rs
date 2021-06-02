@@ -1,6 +1,12 @@
 use std::fmt;
 
+#[derive(Copy, Clone)]
+pub enum Reg8 { A, F, B, C, D, E, H, L, }
+#[derive(Copy, Clone)]
+pub enum Reg16 { AF, BC, DE, HL, SP, PC, }
+
 // Flags values = offset into f register
+#[derive(Copy, Clone)]
 pub enum Flag {
     Z = 7,
     N = 6,
@@ -41,6 +47,54 @@ impl Registers {
             pc: 0x0100,
         }
     }
+
+    // General register get/set
+    pub fn get_reg_8(&self, reg: Reg8) -> u8 {
+        match reg {
+            Reg8::A => return self.get_a(),
+            Reg8::F => return self.get_f(),
+            Reg8::B => return self.get_b(),
+            Reg8::C => return self.get_c(),
+            Reg8::D => return self.get_d(),
+            Reg8::E => return self.get_e(),
+            Reg8::H => return self.get_h(),
+            Reg8::L => return self.get_l(),
+        }
+    }
+    pub fn set_reg_8(&mut self, reg: Reg8, value: u8) {
+        match reg {
+            Reg8::A => self.set_a(value),
+            Reg8::F => self.set_f(value),
+            Reg8::B => self.set_b(value),
+            Reg8::C => self.set_c(value),
+            Reg8::D => self.set_d(value),
+            Reg8::E => self.set_e(value),
+            Reg8::H => self.set_h(value),
+            Reg8::L => self.set_l(value),
+        }
+    }
+
+    pub fn get_reg_16(&self, reg: Reg16) -> u16 {
+        match reg {
+            Reg16::AF => return self.get_af(),
+            Reg16::BC => return self.get_bc(),
+            Reg16::DE => return self.get_de(),
+            Reg16::HL => return self.get_hl(),
+            Reg16::SP => return self.get_sp(),
+            Reg16::PC => return self.get_pc(),
+        }
+    }
+    pub fn set_reg_16(&mut self, reg: Reg16, value: u16) {
+        match reg {
+            Reg16::AF => self.set_af(value),
+            Reg16::BC => self.set_bc(value),
+            Reg16::DE => self.set_de(value),
+            Reg16::HL => self.set_hl(value),
+            Reg16::SP => self.set_sp(value),
+            Reg16::PC => self.set_pc(value),
+        }
+    }
+
 
     // AF
     pub fn get_a(&self) -> u8 {

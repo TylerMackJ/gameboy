@@ -18,11 +18,13 @@ impl Gameboy {
     }
 
     pub fn load_rom(&mut self, rom_name: String) -> Result<(), std::io::Error> {
+        // Only works for 32k roms
+
         let mut rom_file = File::open(rom_name)?;
         let mut bytes = Vec::new();
         rom_file.read_to_end(&mut bytes)?;
         for (i, b) in bytes.into_iter().enumerate() {
-            if i < 0x4000 {
+            if i < 0x8000 {
                 self.memory[i] = b
             } else {
                 break;
@@ -49,26 +51,54 @@ impl Gameboy {
         value
     }
 
+    pub fn get_next_16(&mut self) -> u16 {
+        self.get_at_pc_incr() as u16 | ((self.get_at_pc_incr() as u16) << 8)
+    }
+
     pub fn step(&mut self) -> bool {
         if cfg!(debug_assertions) {
             println!("Before {:?}", self.registers);
         }
 
         let instruction = self.get_at_pc_incr();
-        static mut step_count: u64 = 0;
+        static mut STEP_COUNT: u64 = 0;
 
         if cfg!(debug_assertions) {
-            println!("Step: {}\nInstruction: 0x{:02X}", unsafe{ step_count }, instruction);
+            println!("Step: {}\nInstruction: 0x{:02X}", unsafe{ STEP_COUNT }, instruction);
         }
 
-        unsafe { step_count += 1 };
+        unsafe { STEP_COUNT += 1 };
 
         match instruction {
             0x00 => {},
 
+            0x05 => self.dec_8(Reg8::B),
+            0x06 => {
+                let d8: u8 = self.get_at_pc_incr();
+                self.registers.set_c(d8);
+            }
+
+            0x0e => {
+                let d8: u8 = self.get_at_pc_incr();
+                self.registers.set_c(d8);
+            }
+
             0x18 => self.jr(true),
 
+            0x21 => {
+                // ld HL <= d16
+                let d16: u16 = self.get_next_16();
+                self.registers.set_hl(d16);
+            }
+
             0x28 => self.jr(self.registers.get_flag(Flag::Z) == true),
+
+            0x32 => {
+                let a: u8 = self.registers.get_a();
+                let hl: u16 = self.registers.get_hl();
+                self.memory[hl as usize] = a;
+                self.registers.set_hl(hl - 1);
+            }
 
             0x3e => {
                 let d8: u8 = self.get_at_pc_incr();
@@ -92,7 +122,7 @@ impl Gameboy {
             0xea => {
                 // (nn) <= A
                 // ROM CHECK
-                let addr: u16 = self.get_at_pc_incr() as u16 | ((self.get_at_pc_incr() as u16) << 8);
+                let addr: u16 = self.get_next_16();
                 let a: u8 = self.registers.get_a();
                 self.memory[addr as usize] = a;
             }
@@ -130,6 +160,23 @@ impl Gameboy {
         self.registers.set_flag(Flag::C, a < n);
     }
 
+    pub fn dec_8(&mut self, reg: Reg8) {
+        let mut value: u8 = self.registers.get_reg_8(reg);
+
+        self.registers.set_flag(Flag::H, (value & 0x0F).checked_sub(1) == None);
+
+        // Underflow
+        if value == 0x00 {
+            value = 0xFF;
+        } else {
+            value -= 1;
+        }
+        self.registers.set_reg_8(reg, value);
+
+        self.registers.set_flag(Flag::Z, value == 0);
+        self.registers.set_flag(Flag::N, true);
+    }
+
     // Enable and disable interrupts
     pub fn interrupts_enabled(&mut self, enabled: bool) {
         self.memory[0xffff] = enabled as u8;
@@ -137,7 +184,7 @@ impl Gameboy {
 
     // Jump Unconditional
     pub fn jmp(&mut self) {
-        let addr: u16 = self.get_at_pc_incr() as u16 | ((self.get_at_pc_incr() as u16) << 8);
+        let addr: u16 = self.get_next_16();
         self.registers.set_pc(addr);
     }
 
