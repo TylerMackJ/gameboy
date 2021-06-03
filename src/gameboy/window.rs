@@ -61,8 +61,8 @@ impl SdlWindow {
                 let background_tile_address: u8 = memory[0x9800 + background_tile_x + (background_tile_y * 32)];
                 for background_tile_offset in 0..16 {
                     for background_tile_byte_offset in (0..8).step_by(2) {
-                        let pixel_color = (memory[(0x8000 as usize + background_tile_address as usize + background_tile_offset) as usize]);
-                        println!("{}", pixel_color);
+                        let pixel_color = memory[(0x8000 as usize + background_tile_address as usize + background_tile_offset) as usize];
+                        //println!("{}", pixel_color);
                     }
                 }
             }

@@ -87,10 +87,7 @@ impl Gameboy {
 
             0x04 => self.inc_8(Reg8::B),
             0x05 => self.dec_8(Reg8::B),
-            0x06 => {
-                let d8: u8 = self.get_at_pc_incr();
-                self.registers.set_c(d8);
-            }
+            0x06 => self.ld_d8(Reg8::B),
             0x07 => {
                 let mut a: u8 = self.registers.get_a();
 
@@ -108,10 +105,7 @@ impl Gameboy {
 
             0x0c => self.inc_8(Reg8::C),
             0x0d => self.dec_8(Reg8::C),
-            0x0e => {
-                let d8: u8 = self.get_at_pc_incr();
-                self.registers.set_c(d8);
-            }
+            0x0e => self.ld_d8(Reg8::C),
 
             // 1x
             0x10 => self.stop(),
@@ -119,16 +113,14 @@ impl Gameboy {
 
             0x14 => self.inc_8(Reg8::D),
             0x15 => self.dec_8(Reg8::D),
-            0x16 => {
-                let d8: u8 = self.get_at_pc_incr();
-                self.registers.set_d(d8);
-            }
+            0x16 => self.ld_d8(Reg8::D),
 
             0x18 => self.jr(true),
             0x19 => self.add_hl(Reg16::DE),
 
             0x1c => self.inc_8(Reg8::E),
             0x1d => self.dec_8(Reg8::E),
+            0x1e => self.ld_d8(Reg8::E),
 
             0x1f => {
                 let mut a: u8 = self.registers.get_a();
@@ -148,12 +140,14 @@ impl Gameboy {
 
             0x24 => self.inc_8(Reg8::H),
             0x25 => self.dec_8(Reg8::H),
+            0x26 => self.ld_d8(Reg8::H),
 
             0x28 => self.jr(self.registers.get_flag(Flag::Z) == true),
             0x29 => self.add_hl(Reg16::HL),
 
             0x2c => self.inc_8(Reg8::L),
             0x2d => self.inc_8(Reg8::L),
+            0x2e => self.ld_d8(Reg8::L),
 
             // 3x
             0x31 => self.ld_d16(Reg16::SP),
@@ -168,11 +162,7 @@ impl Gameboy {
 
             0x3c => self.inc_8(Reg8::A),
             0x3d => self.dec_8(Reg8::A),
-
-            0x3e => {
-                let d8: u8 = self.get_at_pc_incr();
-                self.registers.set_a(d8);
-            }
+            0x3e => self.ld_d8(Reg8::A),
 
             // 7x
             0x70 => {
@@ -434,7 +424,7 @@ impl Gameboy {
         let offset: u8 = self.get_at_pc_incr();
 
         if condition {
-            self.registers.set_pc(self.registers.get_pc() + offset as u16 - 1);  // -1 added for pc change to get relative values
+            self.registers.set_pc(self.registers.get_pc() + offset as u16);
         }
     }
 
@@ -442,6 +432,11 @@ impl Gameboy {
     pub fn ld_d16(&mut self, reg: Reg16) {
         let d16: u16 = self.get_next_16();
         self.registers.set_reg_16(reg, d16);
+    }
+
+    pub fn ld_d8(&mut self, reg: Reg8) {
+        let d8: u8 = self.get_at_pc_incr();
+        self.registers.set_reg_8(reg, d8);
     }
 
     // OR n with A => A
@@ -458,24 +453,25 @@ impl Gameboy {
     // Push d16 to the stack
     pub fn push_d16(&mut self, d16: u16) {
         let sp: u16 = self.registers.get_sp();
-        self.memory[sp - 1] = (d16 >> 8) as u8 & 0xFF
-        self.memory[sp - 2] = d16 as u8 & 0xFF
+        self.memory[sp as usize - 1] = (d16 >> 8) as u8 & 0xFF;
+        self.memory[sp as usize - 2] = d16 as u8 & 0xFF;
         self.registers.set_sp(sp - 2);
     }
 
     // Pop d16 off the stack into reg
     pub fn pop_d16_into(&mut self, reg: Reg16) {
         let sp: u16 = self.registers.get_sp();
-        let d16: u16 = self.memory[sp] as u16 | ((self.memory[sp + 1] as u16) << 8);
+        let d16: u16 = self.memory[sp as usize] as u16 | ((self.memory[sp as usize + 1] as u16) << 8);
         self.registers.set_reg_16(reg, d16);
         self.registers.set_sp(sp + 2);
     }
 
     // Call at offset address
     pub fn rst(&mut self, offset: u8) {
+        panic!("RST");
         let pc: u16 = self.registers.get_pc();
         self.push_d16(pc);
-        self.set_pc(offset as u16);
+        self.registers.set_pc(offset as u16);
     }
 
     // Stop CPU and LCD until a button is pressed
