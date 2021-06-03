@@ -10,7 +10,7 @@ use window::*;
 pub struct Gameboy {
     memory: [u8; 0x10000],
     registers: Registers,
-    pub window: SdlWindow,
+    //pub window: SdlWindow,
 }
 
 impl Gameboy {
@@ -18,7 +18,7 @@ impl Gameboy {
         Ok(Gameboy {
             memory: [0u8; 0x10000],
             registers: Registers::new(),
-            window: SdlWindow::new()?,
+            //window: SdlWindow::new()?,
         })
     }
 
@@ -62,10 +62,12 @@ impl Gameboy {
     }
 
     pub fn step(&mut self) -> bool {
+        /*
         if !self.window.event_loop() {
             return false;
         }
         self.window.display_loop(&self.memory);
+        */
 
         static mut STEP_COUNT: u64 = 0;
         static START_PRINT: u64 = 0xFF * 0x10;
@@ -390,6 +392,12 @@ impl Gameboy {
             0xef => self.rst(0x28),
 
             // fx
+            0xf0 => {
+                let a8: u8 = self.get_at_pc_incr();
+                let d8: u8 = self.memory[0xFF00 + a8 as usize];
+                self.registers.set_a(d8);
+            }
+
             0xf3 => self.interrupts_enabled(false),
 
             0xf7 => self.rst(0x30),
