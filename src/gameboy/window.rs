@@ -48,7 +48,6 @@ impl SdlWindow {
             }
         }
         ::std::thread::sleep(Duration::new(0, 1_000_000_000u32 / 30));
-        // The rest of the game loop goes here...
         return true
     }
 
@@ -62,6 +61,9 @@ impl SdlWindow {
                 for background_tile_offset in 0..16 {
                     for background_tile_byte_offset in (0..8).step_by(2) {
                         let pixel_color = memory[(0x8000 as usize + background_tile_address as usize + background_tile_offset) as usize];
+                        if pixel_color != 0x00 {
+                            panic!("Colored pixel found");
+                        }
                         //println!("{}", pixel_color);
                     }
                 }
