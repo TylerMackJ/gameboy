@@ -294,11 +294,20 @@ impl Gameboy {
             0xc2 => self.jmp(self.registers.get_flag(Flag::Z) == false),
             0xc3 => self.jmp(true),
 
+            0xc7 => self.rst(0x00),
+
             0xca => self.jmp(self.registers.get_flag(Flag::Z) == true),
+
+            0xcf => self.rst(0x08),
 
             // dx
             0xd2 => self.jmp(self.registers.get_flag(Flag::C) == false),
+
+            0xd7 => self.rst(0x10),
+
             0xda => self.jmp(self.registers.get_flag(Flag::C) == true),
+
+            0xdf => self.rst(0x18),
 
             // ex
             0xe0 => {
@@ -308,6 +317,8 @@ impl Gameboy {
                 self.memory[0xFF00 + offset as usize] = a;
             }
 
+            0xe7 => self.rst(0x20),
+
             0xea => {
                 // (nn) <= A
                 // ROM CHECK
@@ -316,13 +327,18 @@ impl Gameboy {
                 self.memory[addr as usize] = a;
             }
 
+            0xef => self.rst(0x28),
+
             // fx
             0xf3 => self.interrupts_enabled(false),
+
+            0xf7 => self.rst(0x30),
 
             0xfe => {
                 let d8: u8 = self.get_at_pc_incr();
                 self.cp(d8);
-            },
+            }
+            0xff => self.rst(0x38),
 
             _ => {
                 println!("0x{:02X} Not implemented", instruction);
@@ -439,6 +455,30 @@ impl Gameboy {
         self.registers.set_flag(Flag::C, false);
     }
 
+    // Push d16 to the stack
+    pub fn push_d16(&mut self, d16: u16) {
+        let sp: u16 = self.registers.get_sp();
+        self.memory[sp - 1] = (d16 >> 8) as u8 & 0xFF
+        self.memory[sp - 2] = d16 as u8 & 0xFF
+        self.registers.set_sp(sp - 2);
+    }
+
+    // Pop d16 off the stack into reg
+    pub fn pop_d16_into(&mut self, reg: Reg16) {
+        let sp: u16 = self.registers.get_sp();
+        let d16: u16 = self.memory[sp] as u16 | ((self.memory[sp + 1] as u16) << 8);
+        self.registers.set_reg_16(reg, d16);
+        self.registers.set_sp(sp + 2);
+    }
+
+    // Call at offset address
+    pub fn rst(&mut self, offset: u8) {
+        let pc: u16 = self.registers.get_pc();
+        self.push_d16(pc);
+        self.set_pc(offset as u16);
+    }
+
+    // Stop CPU and LCD until a button is pressed
     pub fn stop(&mut self) {
         // Stop CPU and LCD until a button is pressed
         return;
