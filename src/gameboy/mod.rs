@@ -67,14 +67,16 @@ impl Gameboy {
         }
         self.window.display_loop(&self.memory);
 
-        if cfg!(debug_assertions) {
+        static mut STEP_COUNT: u64 = 0;
+        static START_PRINT: u64 = 0xFF * 0x10;
+
+        if cfg!(debug_assertions) && unsafe { STEP_COUNT > START_PRINT } {
             println!("Before {:?}", self.registers);
         }
 
         let instruction = self.get_at_pc_incr();
-        static mut STEP_COUNT: u64 = 0;
 
-        if cfg!(debug_assertions) {
+        if cfg!(debug_assertions) && unsafe { STEP_COUNT > START_PRINT } {
             println!("Step: {}\nInstruction: 0x{:02X}", unsafe{ STEP_COUNT }, instruction);
         }
 
@@ -404,7 +406,7 @@ impl Gameboy {
             },
         }
 
-        if cfg!(debug_assertions) {
+        if cfg!(debug_assertions) && unsafe { STEP_COUNT > START_PRINT } {
             println!("After {:?}", self.registers);
             println!("");
         }
@@ -492,7 +494,8 @@ impl Gameboy {
         let offset: u8 = self.get_at_pc_incr();
 
         if condition {
-            self.registers.set_pc(self.registers.get_pc() + offset as u16);
+            self.registers.set_pc((self.registers.get_pc() as i16 + (offset as i8) as i16) as u16);
+
         }
     }
 
