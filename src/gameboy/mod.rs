@@ -150,6 +150,7 @@ impl Gameboy {
             0x2e => self.ld_d8(Reg8::L),
 
             // 3x
+            0x30 => self.jr(self.registers.get_flag(Flag::C) == false),
             0x31 => self.ld_d16(Reg16::SP),
             0x32 => {
                 let a: u8 = self.registers.get_a();
@@ -158,11 +159,69 @@ impl Gameboy {
                 self.registers.set_hl(hl - 1);
             }
 
+            0x38 => self.jr(self.registers.get_flag(Flag::C) == true),
             0x39 => self.add_hl(Reg16::SP),
 
             0x3c => self.inc_8(Reg8::A),
             0x3d => self.dec_8(Reg8::A),
             0x3e => self.ld_d8(Reg8::A),
+
+            // 4x
+            0x40 => self.ld_reg8(Reg8::B, Reg8::B),
+            0x41 => self.ld_reg8(Reg8::B, Reg8::C),
+            0x42 => self.ld_reg8(Reg8::B, Reg8::D),
+            0x43 => self.ld_reg8(Reg8::B, Reg8::E),
+            0x44 => self.ld_reg8(Reg8::B, Reg8::H),
+            0x45 => self.ld_reg8(Reg8::B, Reg8::L),
+
+            0x47 => self.ld_reg8(Reg8::B, Reg8::A),
+
+            0x48 => self.ld_reg8(Reg8::C, Reg8::B),
+            0x49 => self.ld_reg8(Reg8::C, Reg8::C),
+            0x4a => self.ld_reg8(Reg8::C, Reg8::D),
+            0x4b => self.ld_reg8(Reg8::C, Reg8::E),
+            0x4c => self.ld_reg8(Reg8::C, Reg8::H),
+            0x4d => self.ld_reg8(Reg8::C, Reg8::L),
+
+            0x4f => self.ld_reg8(Reg8::C, Reg8::A),
+
+            // 5x
+            0x50 => self.ld_reg8(Reg8::D, Reg8::B),
+            0x51 => self.ld_reg8(Reg8::D, Reg8::C),
+            0x52 => self.ld_reg8(Reg8::D, Reg8::D),
+            0x53 => self.ld_reg8(Reg8::D, Reg8::E),
+            0x54 => self.ld_reg8(Reg8::D, Reg8::H),
+            0x55 => self.ld_reg8(Reg8::D, Reg8::L),
+
+            0x57 => self.ld_reg8(Reg8::D, Reg8::A),
+
+            0x58 => self.ld_reg8(Reg8::E, Reg8::B),
+            0x59 => self.ld_reg8(Reg8::E, Reg8::C),
+            0x5a => self.ld_reg8(Reg8::E, Reg8::D),
+            0x5b => self.ld_reg8(Reg8::E, Reg8::E),
+            0x5c => self.ld_reg8(Reg8::E, Reg8::H),
+            0x5d => self.ld_reg8(Reg8::E, Reg8::L),
+
+            0x5f => self.ld_reg8(Reg8::E, Reg8::A),
+
+            // 6x
+            0x60 => self.ld_reg8(Reg8::H, Reg8::B),
+            0x61 => self.ld_reg8(Reg8::H, Reg8::C),
+            0x62 => self.ld_reg8(Reg8::H, Reg8::D),
+            0x63 => self.ld_reg8(Reg8::H, Reg8::E),
+            0x64 => self.ld_reg8(Reg8::H, Reg8::H),
+            0x65 => self.ld_reg8(Reg8::H, Reg8::L),
+
+            0x67 => self.ld_reg8(Reg8::H, Reg8::A),
+
+            0x68 => self.ld_reg8(Reg8::L, Reg8::B),
+            0x69 => self.ld_reg8(Reg8::L, Reg8::C),
+            0x6a => self.ld_reg8(Reg8::L, Reg8::D),
+            0x6b => self.ld_reg8(Reg8::L, Reg8::E),
+            0x6c => self.ld_reg8(Reg8::L, Reg8::H),
+            0x6d => self.ld_reg8(Reg8::L, Reg8::L),
+
+            0x6f => self.ld_reg8(Reg8::L, Reg8::A),
 
             // 7x
             0x70 => {
@@ -205,6 +264,15 @@ impl Gameboy {
                 let e: u8 = self.registers.get_e();
                 self.registers.set_a(e);
             }
+
+            0x78 => self.ld_reg8(Reg8::A, Reg8::B),
+            0x79 => self.ld_reg8(Reg8::A, Reg8::C),
+            0x7a => self.ld_reg8(Reg8::A, Reg8::D),
+            0x7b => self.ld_reg8(Reg8::A, Reg8::E),
+            0x7c => self.ld_reg8(Reg8::A, Reg8::H),
+            0x7d => self.ld_reg8(Reg8::A, Reg8::L),
+
+            0x7f => self.ld_reg8(Reg8::A, Reg8::A),
 
             // ax
             0xaf => {
@@ -434,9 +502,16 @@ impl Gameboy {
         self.registers.set_reg_16(reg, d16);
     }
 
+    // LD reg <- d8
     pub fn ld_d8(&mut self, reg: Reg8) {
         let d8: u8 = self.get_at_pc_incr();
         self.registers.set_reg_8(reg, d8);
+    }
+
+    // LD dst <- src
+    pub fn ld_reg8(&mut self, dst: Reg8, src: Reg8) {
+        let d8: u8 = self.registers.get_reg_8(src);
+        self.registers.set_reg_8(dst, d8);
     }
 
     // OR n with A => A
