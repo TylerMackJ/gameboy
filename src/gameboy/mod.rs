@@ -10,7 +10,7 @@ use window::*;
 pub struct Gameboy {
     memory: [u8; 0x10000],
     registers: Registers,
-    //pub window: SdlWindow,
+    pub window: SdlWindow,
 }
 
 impl Gameboy {
@@ -18,7 +18,7 @@ impl Gameboy {
         Ok(Gameboy {
             memory: [0u8; 0x10000],
             registers: Registers::new(),
-            //window: SdlWindow::new()?,
+            window: SdlWindow::new()?,
         })
     }
 
@@ -62,15 +62,23 @@ impl Gameboy {
     }
 
     pub fn step(&mut self) -> bool {
-        /*
-        if !self.window.event_loop() {
-            return false;
-        }
-        self.window.display_loop(&self.memory);
-        */
-
         static mut STEP_COUNT: u64 = 0;
-        static START_PRINT: u64 = 0xFF * 0x10;
+        static START_PRINT: u64 = 0x00;
+
+        if unsafe { STEP_COUNT } % 0xF0 == 0 {
+            if !self.window.event_loop() {
+                return false;
+            }
+            self.window.display_loop(&self.memory);
+
+            let mut ly: u8 = self.memory[0xFF44];
+            if ly == 153 {
+                ly = 0;
+            } else {
+                ly += 1;
+            }
+            self.memory[0xFF44] = ly;
+        }
 
         if cfg!(debug_assertions) && unsafe { STEP_COUNT > START_PRINT } {
             println!("Before {:?}", self.registers);
