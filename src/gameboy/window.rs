@@ -53,18 +53,18 @@ impl SdlWindow {
     pub fn display_loop(&mut self, memory: &[u8; 0x10000]) {
         self.canvas.set_draw_color(Color::RGB(0, 0, 0));
         self.canvas.clear();
+        self.canvas.set_draw_color(Color::RGB(255, 255, 255));
 
         for background_tile_x in 0..5 {
             for background_tile_y in 0..5 {
-                let background_tile_address: u8 = memory[0x9800 + background_tile_x + (background_tile_y * 32)];
-                for background_tile_offset in 0..16 {
-                    for background_tile_byte_offset in (0..8).step_by(2) {
-                        let pixel_color = memory[(0x8000 as usize + background_tile_address as usize + background_tile_offset) as usize];
-                        if pixel_color != 0x00 {
-                            panic!("Colored pixel found");
-                        }
-                        //println!("{}", pixel_color);
-                    }
+                let background_tile: *const u8 = &memory[0x9800 + background_tile_x + (background_tile_y * 32)];
+                for bit in (0..128).step_by(2) {
+                    let byte = bit / 8;
+                    let pixel: u8 = unsafe { (*background_tile.offset(byte) >> (6 - (bit % 8)) & 0x03) };
+                    let row: i32 = bit as i32 / 16;
+                    let col: i32 = bit as i32 % 16;
+                    //println!("{} ({}, {})", pixel, row, col);
+                    self.canvas.draw_point(Point::new(col, row));
                 }
             }
         }
