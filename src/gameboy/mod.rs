@@ -313,6 +313,20 @@ impl Gameboy {
 
             0x7f => self.ld_reg8(Reg8::A, Reg8::A),
 
+            // 8x
+            0x80 => self.add_a(self.registers.get_b()),
+            0x81 => self.add_a(self.registers.get_c()),
+            0x82 => self.add_a(self.registers.get_d()),
+            0x83 => self.add_a(self.registers.get_e()),
+            0x84 => self.add_a(self.registers.get_h()),
+            0x85 => self.add_a(self.registers.get_l()),
+            0x86 => {
+                let hl: u16 = self.registers.get_hl();
+                let d8: u8 = self.memory[hl as usize];
+                self.add_a(d8);
+            }
+            0x87 => self.add_a(self.registers.get_a()),
+
             // ax
             0xa0 => {
                 let b: u8 = self.registers.get_b();
@@ -347,7 +361,35 @@ impl Gameboy {
                 let a: u8 = self.registers.get_a();
                 self.and(a);
             }
-            
+            0xa8 => {
+                let b: u8 = self.registers.get_b();
+                self.xor(b);
+            }
+            0xa9 => {
+                let c: u8 = self.registers.get_c();
+                self.xor(c);
+            }
+            0xaa => {
+                let d: u8 = self.registers.get_d();
+                self.xor(d);
+            }
+            0xab => {
+                let e: u8 = self.registers.get_e();
+                self.xor(e);
+            }
+            0xac => {
+                let h: u8 = self.registers.get_h();
+                self.xor(h);
+            }
+            0xad => {
+                let l: u8 = self.registers.get_l();
+                self.xor(l);
+            }
+            0xae => {
+                let hl: u16 = self.registers.get_hl();
+                let d8: u8 = self.memory[hl as usize];
+                self.xor(d8);
+            }
             0xaf => {
                 let a: u8 = self.registers.get_a();
                 self.xor(a);
@@ -423,7 +465,7 @@ impl Gameboy {
 
             // cx
             0xc0 => self.ret(self.registers.get_flag(Flag::Z) == false),
-
+            0xc1 => self.pop_d16_into(Reg16::BC),
             0xc2 => self.jmp(self.registers.get_flag(Flag::Z) == false),
             0xc3 => self.jmp(true),
 
@@ -431,6 +473,37 @@ impl Gameboy {
             0xc8 => self.ret(self.registers.get_flag(Flag::Z) == true),
             0xc9 => self.ret(true),
             0xca => self.jmp(self.registers.get_flag(Flag::Z) == true),
+            0xcb => {
+                let prefixed_instruction: u8 = self.get_at_pc_incr();
+
+                if cfg!(debug_assertions) && unsafe { STEP_COUNT > START_PRINT } {
+                    println!("Prefixed Instruction: 0x{:02X}", prefixed_instruction);
+                }
+
+                match prefixed_instruction {
+                    // 0x3x
+                    0x30 => self.swap(Reg8::B),
+                    0x31 => self.swap(Reg8::C),
+                    0x32 => self.swap(Reg8::D),
+                    0x33 => self.swap(Reg8::E),
+                    0x34 => self.swap(Reg8::H),
+                    0x35 => self.swap(Reg8::L),
+                    0x36 => {
+                        let hl: u16 = self.registers.get_hl();
+                        let mut r: u8 = self.memory[hl as usize];
+                        let r_bottom: u8 = r & 0x0F;
+                        r >>= 4;
+                        r |= r_bottom << 4;
+                        self.memory[hl as usize] = r;
+                    }
+                    0x37 => self.swap(Reg8::A),
+
+                    _ => {
+                        println!("0xCB{:02X} Not implemented", prefixed_instruction);
+                        return false;
+                    },
+                }
+            }
 
             0xcd => self.call(true),
 
@@ -438,6 +511,7 @@ impl Gameboy {
 
             // dx
             0xd0 => self.ret(self.registers.get_flag(Flag::C) == false),
+            0xd1 => self.pop_d16_into(Reg16::DE),
 
             0xd2 => self.jmp(self.registers.get_flag(Flag::C) == false),
 
@@ -455,6 +529,7 @@ impl Gameboy {
                 let a: u8 = self.registers.get_a();
                 self.memory[0xFF00 + offset as usize] = a;
             }
+            0xe1 => self.pop_d16_into(Reg16::HL),
 
             0xe2 => {
                 let c: u8 = self.registers.get_c();
@@ -484,7 +559,7 @@ impl Gameboy {
                 let d8: u8 = self.memory[0xFF00 + a8 as usize];
                 self.registers.set_a(d8);
             }
-
+            0xf1 => self.pop_d16_into(Reg16::AF),
             0xf3 => self.interrupts_enabled(false),
 
             0xf7 => self.rst(0x30),
@@ -513,6 +588,18 @@ impl Gameboy {
 
     // ---Generalized instruction implementations---
 
+    // Add A += n
+    pub fn add_a(&mut self, n: u8) {
+        let a: u8 = self.registers.get_a();
+        let value = a.overflowing_add(n);
+        self.registers.set_a(value.0);
+
+        self.registers.set_flag(Flag::Z, value.0 == 0);
+        self.registers.set_flag(Flag::N, false);
+        self.registers.set_flag(Flag::H, ((a & 0x0F) + (n & 0x0F) & 0x10 == 0x10));
+        self.registers.set_flag(Flag::C, value.1);
+    }
+
     // Add HL += n
     pub fn add_hl(&mut self, reg: Reg16) {
         let n: u16 = self.registers.get_reg_16(reg);
@@ -522,7 +609,7 @@ impl Gameboy {
         self.registers.set_hl(addition.0);
 
         self.registers.set_flag(Flag::N, false);
-        self.registers.set_flag(Flag::H, (hl & 0x0fff).overflowing_add(n & 0x0fff).1);
+        self.registers.set_flag(Flag::H, ((hl & 0x0fff) + (n & 0x0fff)) & 0x1000 == 0x1000);
         self.registers.set_flag(Flag::C, addition.1);
     }
 
@@ -610,7 +697,7 @@ impl Gameboy {
     pub fn inc_8(&mut self, reg: Reg8) {
         let mut value: u8 = self.registers.get_reg_8(reg);
 
-        self.registers.set_flag(Flag::H, (value & 0x0F).overflowing_add(1).1);
+        self.registers.set_flag(Flag::H, ((value & 0x0F) + 1) & 0x10 == 0x10);
 
         // Overflow
         if value == 0xFF {
@@ -717,6 +804,15 @@ impl Gameboy {
     pub fn stop(&mut self) {
         // Stop CPU and LCD until a button is pressed
         return;
+    }
+
+    // Swap the upper and lower 4 bits
+    pub fn swap(&mut self, reg: Reg8) {
+        let mut r: u8 = self.registers.get_reg_8(reg);
+        let r_bottom: u8 = r & 0x0F;
+        r >>= 4;
+        r |= r_bottom << 4;
+        self.registers.set_reg_8(reg, r);
     }
 
     // XOR n with A => A
