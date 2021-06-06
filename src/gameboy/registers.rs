@@ -1,8 +1,10 @@
 use std::fmt;
 
 #[derive(Copy, Clone)]
+#[allow(dead_code)]
 pub enum Reg8 { A, F, B, C, D, E, H, L, }
 #[derive(Copy, Clone)]
+#[allow(dead_code)]
 pub enum Reg16 { AF, BC, DE, HL, SP, PC, }
 
 // Flags values = offset into f register

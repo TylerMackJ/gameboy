@@ -50,7 +50,7 @@ impl SdlWindow {
         return true
     }
 
-    pub fn display_loop(&mut self, memory: &[u8; 0x10000]) {
+    pub fn display_loop(&mut self, memory: &[u8; 0x10000]) -> Result<(), String> {
         self.canvas.set_draw_color(Color::RGB(0, 0, 0));
         self.canvas.clear();
 
@@ -58,13 +58,16 @@ impl SdlWindow {
         for tile_x in 0..32u32 {
             for tile_y in 0..32u32 {
                 //let tile_number: u32 = tile_x + (tile_y * 32);
-                let tile_number: u32 = memory[(0x9800 + tile_x + (tile_y * 32)) as usize] as u32;
+                let tile_number: u32 = memory[(0x9C00 + tile_x + (tile_y * 32)) as usize] as u32;
                 for byte_offset in (0..16u32).step_by(2) {
                     let lsb: u8 = memory[(0x8000 + tile_number + byte_offset) as usize];
                     let msb: u8 = memory[(0x8000 + tile_number + byte_offset + 1) as usize];
 
                     for bit_offset in 0..8u32 {
                         let color_data: u8 = ((lsb >> (7 - bit_offset)) & 0x01) + (((msb >> (7 - bit_offset)) & 0x01) << 1);
+
+                        let scy: u32 = memory[0xFF42] as u32;
+                        let scx: u32 = memory[0xFF43] as u32;
 
                         match color_data {
                             0b00 => self.canvas.set_draw_color(Color::RGB(0, 0, 0)),
@@ -74,11 +77,12 @@ impl SdlWindow {
                             _ => panic!("Color data incorrect {:08b}", color_data),
                         }
 
-                        self.canvas.draw_point(Point::new(((tile_x * 8u32) + bit_offset) as i32, ((tile_y * 8u32) + (byte_offset / 2u32)) as i32));
+                        self.canvas.draw_point(Point::new(((tile_x * 8u32) + bit_offset - scx) as i32, ((tile_y * 8u32) + (byte_offset / 2u32) - scy) as i32))?;
                     }
                 }
             }
         }
         self.canvas.present();
+        Ok(())
     }
 }
