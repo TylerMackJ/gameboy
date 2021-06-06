@@ -65,7 +65,7 @@ impl Gameboy {
         static mut STEP_COUNT: u64 = 0;
         static START_PRINT: u64 = 150000;
 
-        if unsafe { STEP_COUNT } % 0xF0 == 0 {
+        if unsafe { STEP_COUNT } % 0x1FF == 0 {
             if !self.window.event_loop() {
                 return false;
             }
@@ -106,7 +106,7 @@ impl Gameboy {
             0x05 => self.dec_8(Reg8::B),
             0x06 => self.ld_d8(Reg8::B),
             0x07 => {
-                let mut a: u8 = self.registers.get_a();
+                let a: u8 = self.registers.get_a();
 
                 self.registers.set_flag(Flag::C, a & 0x80 == 0x80);
                 self.registers.set_a(a << 1);
@@ -772,7 +772,7 @@ impl Gameboy {
 
         self.registers.set_flag(Flag::Z, value.0 == 0);
         self.registers.set_flag(Flag::N, false);
-        self.registers.set_flag(Flag::H, ((a & 0x0F) + (n & 0x0F) & 0x10 == 0x10));
+        self.registers.set_flag(Flag::H, (a & 0x0F) + (n & 0x0F) & 0x10 == 0x10);
         self.registers.set_flag(Flag::C, value.1);
     }
 
@@ -803,9 +803,11 @@ impl Gameboy {
     // Call a16
     pub fn call(&mut self, condition: bool) {
         let a16: u16 = self.get_next_16();
-        let pc: u16 = self.registers.get_pc();
-        self.push_d16(pc);
-        self.registers.set_pc(a16);
+        if condition {
+            let pc: u16 = self.registers.get_pc();
+            self.push_d16(pc);
+            self.registers.set_pc(a16);
+        }
     }
 
     // Compare

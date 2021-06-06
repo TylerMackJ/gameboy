@@ -4,7 +4,7 @@ use sdl2::event::Event;
 use sdl2::keyboard::Keycode;
 use sdl2::pixels::Color;
 use sdl2::rect::Point;
-use std::time::Duration;
+//use std::time::Duration;
 
 pub struct SdlWindow {
     canvas: sdl2::render::Canvas<sdl2::video::Window>,
@@ -53,18 +53,29 @@ impl SdlWindow {
     pub fn display_loop(&mut self, memory: &[u8; 0x10000]) {
         self.canvas.set_draw_color(Color::RGB(0, 0, 0));
         self.canvas.clear();
-        self.canvas.set_draw_color(Color::RGB(255, 255, 255));
 
-        for background_tile_x in 0..5 {
-            for background_tile_y in 0..5 {
-                let background_tile: *const u8 = &memory[0x9800 + background_tile_x + (background_tile_y * 32)];
-                for bit in (0..128).step_by(2) {
-                    let byte = bit / 8;
-                    let pixel: u8 = unsafe { (*background_tile.offset(byte) >> (6 - (bit % 8)) & 0x03) };
-                    let row: i32 = bit as i32 / 16;
-                    let col: i32 = bit as i32 % 16;
-                    //println!("{} ({}, {})", pixel, row, col);
-                    self.canvas.draw_point(Point::new(col, row));
+
+        for tile_x in 0..32u32 {
+            for tile_y in 0..32u32 {
+                //let tile_number: u32 = tile_x + (tile_y * 32);
+                let tile_number: u32 = memory[(0x9800 + tile_x + (tile_y * 32)) as usize] as u32;
+                for byte_offset in (0..16u32).step_by(2) {
+                    let lsb: u8 = memory[(0x8000 + tile_number + byte_offset) as usize];
+                    let msb: u8 = memory[(0x8000 + tile_number + byte_offset + 1) as usize];
+
+                    for bit_offset in 0..8u32 {
+                        let color_data: u8 = ((lsb >> (7 - bit_offset)) & 0x01) + (((msb >> (7 - bit_offset)) & 0x01) << 1);
+
+                        match color_data {
+                            0b00 => self.canvas.set_draw_color(Color::RGB(0, 0, 0)),
+                            0b01 => self.canvas.set_draw_color(Color::RGB(86, 86, 86)),
+                            0b10 => self.canvas.set_draw_color(Color::RGB(172, 172, 172)),
+                            0b11 => self.canvas.set_draw_color(Color::RGB(255, 255, 255)),
+                            _ => panic!("Color data incorrect {:08b}", color_data),
+                        }
+
+                        self.canvas.draw_point(Point::new(((tile_x * 8u32) + bit_offset) as i32, ((tile_y * 8u32) + (byte_offset / 2u32)) as i32));
+                    }
                 }
             }
         }
