@@ -50,6 +50,11 @@ impl Gameboy {
         }
     }
 
+    // Write d8 to memory[addr]
+    pub fn write(&mut self, addr: u16, d8: u8) {
+        self.memory[addr as usize] = d8;
+    }
+
     // Get u8 at pc location and increment
     pub fn get_at_pc_incr(&mut self) -> u8 {
         let value: u8 = self.memory[self.registers.get_pc() as usize];
@@ -63,7 +68,7 @@ impl Gameboy {
 
     pub fn step(&mut self) -> bool {
         static mut STEP_COUNT: u64 = 0;
-        static START_PRINT: u64 = 150000;
+        static START_PRINT: u64 = 1500000;
 
         if unsafe { STEP_COUNT } % 0x1FF == 0 {
             if !self.window.event_loop() {
@@ -77,7 +82,7 @@ impl Gameboy {
             } else {
                 ly += 1;
             }
-            self.memory[0xFF44] = ly;
+            self.write(0xFF44, ly);
         }
 
         if cfg!(debug_assertions) && unsafe { STEP_COUNT > START_PRINT } {
@@ -99,7 +104,7 @@ impl Gameboy {
             0x02 => {
                 let bc: u16 = self.registers.get_bc();
                 let a: u8 = self.registers.get_a();
-                self.memory[bc as usize] = a;
+                self.write(bc, a);
             }
             0x03 => self.inc_16(Reg16::BC),
             0x04 => self.inc_8(Reg8::B),
@@ -114,8 +119,8 @@ impl Gameboy {
             0x08 => {
                 let sp: u16 = self.registers.get_sp();
                 let a16: u16 = self.get_next_16();
-                self.memory[a16 as usize] = (sp >> 8) as u8;
-                self.memory[a16 as usize + 1] = sp as u8;
+                self.write(a16, (sp >> 8) as u8);
+                self.write(a16 + 1, sp as u8)
             }
 
             0x09 => self.add_hl(Reg16::BC),
@@ -135,7 +140,7 @@ impl Gameboy {
             0x12 => {
                 let de: u16 = self.registers.get_de();
                 let a: u8 = self.registers.get_a();
-                self.memory[de as usize] = a;
+                self.write(de, a);
             }
             0x13 => self.inc_16(Reg16::DE),
             0x14 => self.inc_8(Reg8::D),
@@ -172,7 +177,7 @@ impl Gameboy {
             0x22 => {
                 let a: u8 = self.registers.get_a();
                 let hl: u16 = self.registers.get_hl();
-                self.memory[hl as usize] = a;
+                self.write(hl, a);
                 self.registers.set_hl(hl + 1);
             }
             0x23 => self.inc_16(Reg16::HL),
@@ -201,7 +206,7 @@ impl Gameboy {
             0x32 => {
                 let a: u8 = self.registers.get_a();
                 let hl: u16 = self.registers.get_hl();
-                self.memory[hl as usize] = a;
+                self.write(hl, a);
                 self.registers.set_hl(hl - 1);
             }
             0x33 => self.inc_16(Reg16::SP),
@@ -209,7 +214,7 @@ impl Gameboy {
             0x36 => {
                 let d8: u8 = self.get_at_pc_incr();
                 let hl: u16 = self.registers.get_hl();
-                self.memory[hl as usize] = d8;
+                self.write(hl, d8)
             }
 
             0x38 => self.jr(self.registers.get_flag(Flag::C) == true),
@@ -308,38 +313,38 @@ impl Gameboy {
             0x70 => {
                 let b: u8 = self.registers.get_b();
                 let hl: u16 = self.registers.get_hl();
-                self.memory[hl as usize] = b;
+                self.write(hl, b);
             }
             0x71 => {
                 let c: u8 = self.registers.get_c();
                 let hl: u16 = self.registers.get_hl();
-                self.memory[hl as usize] = c;
+                self.write(hl, c);
             }
             0x72 => {
                 let d: u8 = self.registers.get_d();
                 let hl: u16 = self.registers.get_hl();
-                self.memory[hl as usize] = d;
+                self.write(hl, d);
             }
             0x73 => {
                 let e: u8 = self.registers.get_e();
                 let hl: u16 = self.registers.get_hl();
-                self.memory[hl as usize] = e;
+                self.write(hl, e);
             }
             0x74 => {
                 let h: u8 = self.registers.get_h();
                 let hl: u16 = self.registers.get_hl();
-                self.memory[hl as usize] = h;
+                self.write(hl, h);
             }
             0x75 => {
                 let l: u8 = self.registers.get_l();
                 let hl: u16 = self.registers.get_hl();
-                self.memory[hl as usize] = l;
+                self.write(hl, l);
             }
             0x76 => return false,
             0x77 => {
                 let a: u8 = self.registers.get_a();
                 let hl: u16 = self.registers.get_hl();
-                self.memory[hl as usize] = a;
+                self.write(hl, a);
             }
 
             0x7b => {
@@ -401,7 +406,7 @@ impl Gameboy {
             }
             0xa6 => {
                 let hl: u16 = self.registers.get_hl();
-                let d8 = self.memory[hl as usize];
+                let d8: u8 = self.memory[hl as usize];
                 self.and(d8);
             }
             0xa7 => {
@@ -543,7 +548,7 @@ impl Gameboy {
                         let r_bottom: u8 = r & 0x0F;
                         r >>= 4;
                         r |= r_bottom << 4;
-                        self.memory[hl as usize] = r;
+                        self.write(hl, r);
                     }
                     0x37 => self.swap(Reg8::A),
 
@@ -558,7 +563,7 @@ impl Gameboy {
                         let hl: u16 = self.registers.get_hl();
                         let d8: u8 = self.memory[hl as usize];
                         let mask: u8 = !(0x01 << 0);
-                        self.memory[hl as usize] = d8 & mask;
+                        self.write(hl, d8 & mask);
                     }
                     0x87 => self.res(1, Reg8::A),
                     0x88 => self.res(1, Reg8::B),
@@ -571,7 +576,7 @@ impl Gameboy {
                         let hl: u16 = self.registers.get_hl();
                         let d8: u8 = self.memory[hl as usize];
                         let mask: u8 = !(0x01 << 1);
-                        self.memory[hl as usize] = d8 & mask;
+                        self.write(hl, d8 & mask);
                     }
                     0x8f => self.res(1, Reg8::A),
 
@@ -586,7 +591,7 @@ impl Gameboy {
                         let hl: u16 = self.registers.get_hl();
                         let d8: u8 = self.memory[hl as usize];
                         let mask: u8 = !(0x01 << 2);
-                        self.memory[hl as usize] = d8 & mask;
+                        self.write(hl, d8 & mask);
                     }
                     0x97 => self.res(2, Reg8::A),
                     0x98 => self.res(3, Reg8::B),
@@ -599,7 +604,7 @@ impl Gameboy {
                         let hl: u16 = self.registers.get_hl();
                         let d8: u8 = self.memory[hl as usize];
                         let mask: u8 = !(0x01 << 3);
-                        self.memory[hl as usize] = d8 & mask;
+                        self.write(hl, d8 & mask);
                     }
                     0x9f => self.res(3, Reg8::A),
 
@@ -614,7 +619,7 @@ impl Gameboy {
                         let hl: u16 = self.registers.get_hl();
                         let d8: u8 = self.memory[hl as usize];
                         let mask: u8 = !(0x01 << 4);
-                        self.memory[hl as usize] = d8 & mask;
+                        self.write(hl, d8 & mask);
                     }
                     0xa7 => self.res(4, Reg8::A),
                     0xa8 => self.res(5, Reg8::B),
@@ -627,7 +632,7 @@ impl Gameboy {
                         let hl: u16 = self.registers.get_hl();
                         let d8: u8 = self.memory[hl as usize];
                         let mask: u8 = !(0x01 << 5);
-                        self.memory[hl as usize] = d8 & mask;
+                        self.write(hl, d8 & mask);
                     }
                     0xaf => self.res(5, Reg8::A),
 
@@ -642,7 +647,7 @@ impl Gameboy {
                         let hl: u16 = self.registers.get_hl();
                         let d8: u8 = self.memory[hl as usize];
                         let mask: u8 = !(0x01 << 6);
-                        self.memory[hl as usize] = d8 & mask;
+                        self.write(hl, d8 & mask);
                     }
                     0xb7 => self.res(6, Reg8::A),
                     0xb8 => self.res(7, Reg8::B),
@@ -655,7 +660,7 @@ impl Gameboy {
                         let hl: u16 = self.registers.get_hl();
                         let d8: u8 = self.memory[hl as usize];
                         let mask: u8 = !(0x01 << 7);
-                        self.memory[hl as usize] = d8 & mask;
+                        self.write(hl, d8 & mask);
                     }
                     0xbf => self.res(7, Reg8::A),
 
@@ -690,14 +695,14 @@ impl Gameboy {
                 // (0xFF00 + n) <= A
                 let offset: u8 = self.get_at_pc_incr();
                 let a: u8 = self.registers.get_a();
-                self.memory[0xFF00 + offset as usize] = a;
+                self.write(0xFF00 + offset as u16, a);
             }
             0xe1 => self.pop_d16_into(Reg16::HL),
 
             0xe2 => {
                 let c: u8 = self.registers.get_c();
                 let a: u8 = self.registers.get_a();
-                self.memory[0xFF00 + c as usize] = a;
+                self.write(0xFF00 + c as u16, a);
             }
 
             0xe5 => self.push_d16(self.registers.get_hl()),
@@ -717,7 +722,7 @@ impl Gameboy {
                 // ROM CHECK
                 let addr: u16 = self.get_next_16();
                 let a: u8 = self.registers.get_a();
-                self.memory[addr as usize] = a;
+                self.write(addr, a);
             }
 
             0xef => self.rst(0x28),
@@ -740,7 +745,7 @@ impl Gameboy {
                 let d8: u8 = self.memory[a16 as usize];
                 self.registers.set_a(d8);
             }
-            0xfb => self.memory[0xFFFF] = true as u8,
+            0xfb => self.interrupts_enabled(true),
 
             0xfe => {
                 let d8: u8 = self.get_at_pc_incr();
@@ -891,7 +896,7 @@ impl Gameboy {
 
     // Enable and disable interrupts
     pub fn interrupts_enabled(&mut self, enabled: bool) {
-        self.memory[0xffff] = enabled as u8;
+        self.write(0xFFFF, enabled as u8);
     }
 
     // Jump (Un)Conditional
@@ -945,8 +950,8 @@ impl Gameboy {
     // Push d16 to the stack
     pub fn push_d16(&mut self, d16: u16) {
         let sp: u16 = self.registers.get_sp();
-        self.memory[sp as usize - 1] = (d16 >> 8) as u8 & 0xFF;
-        self.memory[sp as usize - 2] = d16 as u8 & 0xFF;
+        self.write(sp - 1, (d16 >> 8) as u8);
+        self.write(sp - 2, d16 as u8);
         self.registers.set_sp(sp - 2);
     }
 
