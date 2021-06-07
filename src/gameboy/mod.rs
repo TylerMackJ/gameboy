@@ -43,17 +43,84 @@ impl Gameboy {
         let mut bytes = Vec::new();
         rom_file.read_to_end(&mut bytes)?;
 
+        let _mbc_type = bytes[0x0147];
+        let rom_size = bytes[0x0148];
+        let ram_size = bytes[0x0149];
 
-        /*
-        for (i, b) in bytes.into_iter().enumerate() {
-            if i < 0x8000 {
-                self.memory[i] = b
-            } else {
-                break;
+        match rom_size {
+            0x00 => {
+                for _ in 0..2 {
+                    self.rom_banks.push([0u8; 0x4000]);
+                }
             }
-
+            0x01 => {
+                for _ in 0..4 {
+                    self.rom_banks.push([0u8; 0x4000]);
+                }
+            }
+            0x02 => {
+                for _ in 0..8 {
+                    self.rom_banks.push([0u8; 0x4000]);
+                }
+            }
+            0x03 => {
+                for _ in 0..16 {
+                    self.rom_banks.push([0u8; 0x4000]);
+                }
+            }
+            0x04 => {
+                for _ in 0..32 {
+                    self.rom_banks.push([0u8; 0x4000]);
+                }
+            }
+            0x05 => {
+                for _ in 0..64 {
+                    self.rom_banks.push([0u8; 0x4000]);
+                }
+            }
+            0x06 => {
+                for _ in 0..128 {
+                    self.rom_banks.push([0u8; 0x4000]);
+                }
+            }
+            0x07 => {
+                for _ in 0..256 {
+                    self.rom_banks.push([0u8; 0x4000]);
+                }
+            }
+            0x52 => {
+                for _ in 0..72 {
+                    self.rom_banks.push([0u8; 0x4000]);
+                }
+            }
+            0x53 => {
+                for _ in 0..80 {
+                    self.rom_banks.push([0u8; 0x4000]);
+                }
+            }
+            0x54 => {
+                for _ in 0..96 {
+                    self.rom_banks.push([0u8; 0x4000]);
+                }
+            }
+            _ => panic!("Unknown ROM size {}", rom_size),
         }
-        */
+
+        match ram_size {
+            0x00 => {}
+            0x01 => self.ram_banks.push([0u8; 0x2000]),
+            0x02 => self.ram_banks.push([0u8; 0x2000]),
+            0x03 => {
+                for _ in 0..4 {
+                    self.ram_banks.push([0u8; 0x2000]);
+                }
+            }
+            _ => panic!("Unknown ram size {}", ram_size),
+        }
+
+        for (i, b) in bytes.into_iter().enumerate() {
+            self.rom_banks[i / 0x4000][i % 0x4000] = b;
+        }
         Ok(())
     }
 
@@ -68,13 +135,20 @@ impl Gameboy {
             if bank == 0x00 {
                 bank = 0x01;
             }
+            let bank = bank | (self.selected_rom_bank as u8 & (!0x1F));
             self.selected_rom_bank = bank as usize;
         } else if addr < 0x6000 {
-            // Unkown ROM Write
-            panic!("Writing to address {}", addr);
+            // RAM bank 2 msb or RAM bank
+            let bank = d8 & 0x03;
+            if self.rxm_mode == 0x00 {
+                let bank = (bank << 5) | (self.selected_rom_bank as u8 & 0x1F);
+                self.selected_rom_bank = bank as usize;
+            } else {
+                self.selected_ram_bank = bank as usize;
+            }
         } else if addr < 0x8000 {
             // ROM/RAM mode
-            if d8 != 0x00 && d8 != 0x00 {
+            if d8 != 0x00 && d8 != 0x01 {
                 panic!("Changing ROM/RAM mode to {}", d8);
             } else {
                 self.rxm_mode = d8;
@@ -102,7 +176,6 @@ impl Gameboy {
                 panic!("Accessing RAM while disabled");
             }
         } else {
-            // Incomplete
             self.memory[addr as usize]
         }
     }
