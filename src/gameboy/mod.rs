@@ -11,6 +11,13 @@ pub struct Gameboy {
     memory: [u8; 0x10000],
     registers: Registers,
     window: SdlWindow,
+    rom_banks: Vec<[u8; 0x4000]>,
+    ram_banks: Vec<[u8; 0x2000]>,
+    selected_rom_bank: usize,
+    selected_ram_bank: usize,
+    ram_enabled: bool,
+    rxm_mode: u8,
+    //mbc: i8, // 0 for HuC1
 }
 
 impl Gameboy {
@@ -19,6 +26,13 @@ impl Gameboy {
             memory: [0u8; 0x10000],
             registers: Registers::new(),
             window: SdlWindow::new()?,
+            rom_banks: Vec::new(),
+            ram_banks: Vec::new(),
+            selected_rom_bank: 1,
+            selected_ram_bank: 0,
+            ram_enabled: false,
+            rxm_mode: 0,
+            //mbc: -1,
         })
     }
 
@@ -28,6 +42,9 @@ impl Gameboy {
         let mut rom_file = File::open(rom_name)?;
         let mut bytes = Vec::new();
         rom_file.read_to_end(&mut bytes)?;
+
+
+        /*
         for (i, b) in bytes.into_iter().enumerate() {
             if i < 0x8000 {
                 self.memory[i] = b
@@ -36,16 +53,58 @@ impl Gameboy {
             }
 
         }
+        */
         Ok(())
     }
 
     // Write d8 to memory[addr]
     pub fn write(&mut self, addr: u16, d8: u8) {
+        if addr < 0x2000 {
+            // RAM enabled
+            self.ram_enabled = (d8 & 0x0F) == 0x0A;
+        } else if addr < 0x4000 {
+            // ROM bank 5 lsb switching
+            let mut bank = d8 & 0x1F;
+            if bank == 0x00 {
+                bank = 0x01;
+            }
+            self.selected_rom_bank = bank as usize;
+        } else if addr < 0x6000 {
+            // Unkown ROM Write
+            panic!("Writing to address {}", addr);
+        } else if addr < 0x8000 {
+            // ROM/RAM mode
+            if d8 != 0x00 && d8 != 0x00 {
+                panic!("Changing ROM/RAM mode to {}", d8);
+            } else {
+                self.rxm_mode = d8;
+            }
+        }
+
         self.memory[addr as usize] = d8;
     }
 
     pub fn read(&self, addr: u16) -> u8 {
-        self.memory[addr as usize]
+        if addr < 0x4000 {
+            // Read from ROM bank 0
+            (self.rom_banks[0])[addr as usize - 0x0000]
+        } else if addr < 0x8000 {
+            // Read from ROM bank n
+            (self.rom_banks[self.selected_rom_bank])[addr as usize - 0x4000]
+        } else if addr < 0xA000 {
+            // VRAM
+            self.memory[addr as usize]
+        } else if addr >= 0xA000 && addr < 0xC000 {
+            // Read from RAM bank n
+            if self.ram_enabled {
+                (self.ram_banks[self.selected_ram_bank])[addr as usize - 0xA000]
+            } else {
+                panic!("Accessing RAM while disabled");
+            }
+        } else {
+            // Incomplete
+            self.memory[addr as usize]
+        }
     }
 
     // Get u8 at pc location and increment
